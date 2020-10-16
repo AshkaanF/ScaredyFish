@@ -88,33 +88,32 @@ for( f in 2 : max( res$time ) ) {
   
   ## order factors in color mapping
   myColors <- c( '#1d91c0', '#e41a1c', '#fdae61' )
-  names(myColors) <- c('Feed', 'Flee', 'Cool')
+  names(myColors) <- c('0', '1', 'Cool')
   colScale <- scale_colour_manual(values = myColors, guide = F)
   
   ## ggnetwork plot
   gg.net <- ggplot(data = current, aes(x = x, y = y, group = id, 
                                        colour = state, 
                                        alpha = transp ) ) +
-    # geom_tile(data = tile.grid, 
-    #           aes( Var1, Var2, fill = value ), 
-    #           colour = '#000000',
-    #           alpha = 0.5,
-    #           size = NA,
-    #           inherit.aes = F ) +
+    geom_tile(data = tile.grid,
+              aes( Var1, Var2, fill = value ),
+              colour = '#000000',
+              alpha = 0.5,
+              size = NA,
+              inherit.aes = F ) +
     # geom_edges(color = '#ffffff',
     #            size = 0.2,
     #            alpha = 0.1,
     #            arrow = arrow( length = unit( 0, 'pt' ), type = 'closed' ) ) + # draw edge layer
-    geom_path(size = 0.1, colour = '#d9d9d9' ) +
-    geom_point( aes( colour = as.factor( state ), size = state ), shape = 20, alpha = 0.55 ) + # draw node layer
+    geom_path(size = 0.04, colour = '#d9d9d9' ) +
+    geom_point( data = current[ current$curr == 1, ], aes( colour = as.factor( state ), size = as.factor( state ) ), shape = 20, alpha = 0.55 ) + # draw node layer
     theme_blank() +
     theme(legend.position = "bottom") +
     scale_x_continuous(limits = arena_x) +
     scale_y_continuous(limits = arena_y) +
-    scale_fill_manual( values = c( '#737373', '#000000' ), guide = F ) +
+    scale_fill_manual( values = c( '#000000', '#737373' ), guide = F ) +
     colScale +
-    scale_shape_manual(values = c(21, 23), guide = F) +
-    scale_size_manual(values = c( 'Flee' = 0.1, 'Feed' = 0.025, 'Cool' = 0.05 ), guide = F ) +
+    scale_size_manual(values = c( '1' = 0.1, '0' = 0.025, 'Cool' = 0.05 ), guide = F ) +
     scale_alpha_continuous(range = c( 0.1, 1 ), trans = 'sqrt', guide = F ) +
     theme( aspect.ratio = my.aspect,
            panel.background = element_rect(fill = "black", color  =  NA),
@@ -148,7 +147,7 @@ for( f in 2 : max( res$time ) ) {
   dev.off()
   
   ## drop a line
-  cat(f, 'of', n, 'printed\n')
+  cat(f, 'printed\n')
   
 }
 
