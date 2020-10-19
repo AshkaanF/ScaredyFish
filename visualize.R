@@ -4,11 +4,11 @@
 ## ---
 
 ## prep
-if( !require( ggforce ) ) { devtools::install_github( 'thomasp85/ggforce' ) }; library( ggforce )
 if( !require( RColorBrewer ) ) { install.packages( 'RColorBrewer' ) }; library( RColorBrewer )
+if( !require( magrittr ) ) { install.packages( 'magrittr' ) }; library( magrittr )
 if( !require( ggnetwork ) ) { install.packages( 'ggnetwork' ) }; library( ggnetwork )
-if( !require( network ) ) { install.packages( 'network' ) }; library( network )
 if( !require( ggplot2 ) ) { install.packages( 'ggplot2' ) }; library( ggplot2 )
+if( !require( dplyr ) ) { install.packages( 'dplyr' ) }; library( dplyr )
 if( !require( OpenImageR ) ) { install.packages( 'OpenImageR' ) }
 if( !require( reshape2 ) ) { install.packages( 'reshape2' ) }
 
@@ -23,8 +23,8 @@ res <- read.table( './out.tsv', sep = '\t' )
 ## add header
 names( res ) <- c( 'time', 'id', 'x', 'y', 'state', 'in.a.patch' )
 
-## load landscape
-landscape <- as.matrix( read.table( './landscape.tsv', sep = '\t', header = F ) )
+## remove goners
+res <- res[ res$x > -1e5, ]
 
 ## get range of my arena
 arena_x <- range( res$x ) + c(-1, 1)
@@ -33,18 +33,116 @@ arena_y <- range( res$y ) + c(-1, 1)
 ## aspect ratio of plot
 my.aspect <- diff( arena_x ) / diff( arena_y )
 
-## quick tracks
-ggplot( res, aes( x, y, colour = state, group = id ) ) +
-  theme_minimal() +
-  geom_path( size = 0.5 ) +
+## load and melt
+tile <- as.matrix( read.table( './landscape.tsv', header = F, sep = '\t' ) )
+# tile <- OpenImageR::down_sample_image( tile, factor = 1, gaussian_blur = T )
+tile.grid <- melt( tile )
+tile.grid$Var2 <- as.numeric( gsub( 'V', '', tile.grid$Var2 ) )
+# tile.grid$value <- ifelse( tile.grid$value == 'true', 1, 0 )
+
+## plot
+ggplot(data = tile.grid, aes( Var1, Var2, fill = ( value ) ) ) +
+  geom_raster() +
+  scale_fill_gradientn( colours = c( '#000000', '#f7f7f7' ), guide = F ) +
   theme( aspect.ratio = my.aspect ) +
   coord_flip()
 
-## tile grid
-tile.grid <- melt( landscape )
 
-## fix label
-tile.grid$Var2 <- as.numeric( gsub( 'V', '', tile.grid$Var2 ) )
+
+## -
+## work
+## -
+for( f in 2 : max( res$time ) ) {
+  
+  ## grab a dataframe you want to use
+  current <- tile.grid
+  
+  ## append column
+  current$ratio <- current$value
+  
+  ## grab stats for each tile
+  current.res <- res[ res$time == f, ]
+  
+  ## summarise tiles
+  sum.res <- current.res %>%
+    group_by( 'rx' = round( x ), 'ry' = round( y ) ) %>%
+    summarise( 'n' = length( state ),
+               'r' = sum( state ) ) %>%
+    as.data.frame()
+  
+  ## fill data frame
+  current$ratio[ !is.na( prodlim::row.match( current[, 1 : 2 ], sum.res[, 1 : 2 ] ) ) ] <- 
+  current$ratio[ !is.na( prodlim::row.match( current[, 1 : 2 ], sum.res[, 1 : 2 ] ) ) ] + 
+    ( sum.res$r[ prodlim::row.match( current[, 1 : 2 ], sum.res[, 1 : 2 ] ) ][ !is.na( prodlim::row.match( current[, 1 : 2 ], sum.res[, 1 : 2 ] ) ) ] /
+        sum.res$n[ prodlim::row.match( current[, 1 : 2 ], sum.res[, 1 : 2 ] ) ][ !is.na( prodlim::row.match( current[, 1 : 2 ], sum.res[, 1 : 2 ] ) ) ] )
+  
+  ## if
+  if( f == 2 ) { last <- current }
+  
+  ## average from last step
+  current$ratio <- ( current$ratio + ( current$ratio + last$ratio ) / 2 ) / 2
+  
+  ##
+  ## can i show when groups initiate? 
+  ##
+  
+  ## ggplot
+  gg.tile <- ggplot(data = current, aes( x = Var1, y = Var2, fill = ratio ) ) +
+    theme_blank() +
+    geom_raster() +
+    geom_point( data = current[ current$ratio > 1, ],
+                aes( x = Var1, y = Var2, fill = ratio, size = ratio ),
+                shape = 22, alpha = 0.75, stroke = 0.1, colour = '#000000',
+                inherit.aes = F ) +
+    scale_fill_gradientn( colours = c( '#000000', '#d9d9d9', '#f0f0f0', '#ffff33', '#e41a1c' ), 
+                          limits = c( 0, 2 ), guide = F ) +
+    scale_size_continuous( range = c( 0.025, 0.5 ), limits = c( 1, 2 ), guide = F ) +
+    theme( aspect.ratio = my.aspect,
+           panel.background = element_rect(fill = "black", color  =  NA),
+           plot.background = element_rect(color = "black", fill = "black" ) ) +
+    coord_flip()
+  
+  
+  ##
+  ## viz output
+  ##
+  
+  ## generate a filename for the frame
+  fn <- paste('../animation_assets/z_frame', 
+              sprintf("%05d", f), 
+              sep = '_') %>%
+    paste(., 'png', sep = '.')
+  
+  ## vector
+  png(filename = fn,
+      width     = 2.95,
+      height    = 2.95,
+      units     = 'in',
+      res       = 480,
+      bg = 'black'
+  )
+  
+  ## print network
+  print( gg.tile )
+  
+  ## print
+  dev.off()
+  
+  ## drop a line
+  cat( f, 'printed\n' )
+  
+  ## save last frame
+  last = current
+  
+}
+
+
+
+
+
+
+
+
 
 ## -
 ## work
@@ -65,27 +163,6 @@ for( f in 2 : max( res$time ) ) {
   ## can i show when groups initiate? 
   ##
   
-  # ## start by grabbing the adjacency matrix
-  # A <- adj[[ f ]]
-  # 
-  # ## make ggnet object
-  # net <- network(A, directed = T)
-  # 
-  # ## edge weights
-  # net %e% 'weights' = A[A > 0]
-  # 
-  # ## vertex state
-  # net %v% 'state' <- current[current$curr == 1, ]$state %>% as.character()
-  # 
-  # ## vertex type
-  # net %v% 'type' <- current[current$curr == 1, ]$in.a.patch %>% as.character()
-  # 
-  # ## fortify for plotting
-  # gnet <- ggnetwork(net, arrow.gap = 0.045,
-  #                   layout = matrix(c(current[current$curr == 1 & current$id != 'Predator', ]$x,
-  #                                     current[current$curr == 1 & current$id != 'Predator', ]$y), ncol = 2),
-  #                   scale = F)
-  
   ## order factors in color mapping
   myColors <- c( '#1d91c0', '#e41a1c', '#fdae61' )
   names(myColors) <- c('0', '1', 'Cool')
@@ -96,7 +173,7 @@ for( f in 2 : max( res$time ) ) {
                                        colour = state, 
                                        alpha = transp ) ) +
     geom_tile(data = tile.grid,
-              aes( Var1, Var2, fill = value ),
+              aes( Var1, Var2, fill = as.numeric( value ) ),
               colour = '#000000',
               alpha = 0.5,
               size = NA,
@@ -111,9 +188,9 @@ for( f in 2 : max( res$time ) ) {
     theme(legend.position = "bottom") +
     scale_x_continuous(limits = arena_x) +
     scale_y_continuous(limits = arena_y) +
-    scale_fill_manual( values = c( '#000000', '#737373' ), guide = F ) +
+    scale_fill_gradientn( colours = c( '#000000', '#737373' ), guide = F ) +
     colScale +
-    scale_size_manual(values = c( '1' = 0.1, '0' = 0.025, 'Cool' = 0.05 ), guide = F ) +
+    scale_size_manual(values = c( '1' = 0.05, '0' = 0.01, 'Cool' = 0.025 ), guide = F ) +
     scale_alpha_continuous(range = c( 0.1, 1 ), trans = 'sqrt', guide = F ) +
     theme( aspect.ratio = my.aspect,
            panel.background = element_rect(fill = "black", color  =  NA),
