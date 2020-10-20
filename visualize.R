@@ -77,10 +77,10 @@ for( f in 2 : max( res$time ) ) {
         sum.res$n[ prodlim::row.match( current[, 1 : 2 ], sum.res[, 1 : 2 ] ) ][ !is.na( prodlim::row.match( current[, 1 : 2 ], sum.res[, 1 : 2 ] ) ) ] )
   
   ## if
-  if( f == 2 ) { last <- current }
+  # if( f == 2 ) { last <- current }
   
   ## average from last step
-  current$ratio <- ( current$ratio + ( current$ratio + last$ratio ) / 2 ) / 2
+  # current$ratio <- ( current$ratio + ( current$ratio + last$ratio ) / 2 ) / 2
   
   ##
   ## can i show when groups initiate? 
@@ -92,11 +92,11 @@ for( f in 2 : max( res$time ) ) {
     geom_raster() +
     geom_point( data = current[ current$ratio > 1, ],
                 aes( x = Var1, y = Var2, fill = ratio, size = ratio ),
-                shape = 22, alpha = 0.75, stroke = 0.1, colour = '#000000',
+                shape = 21, alpha = 0.75, stroke = 0.1, colour = '#f7f7f7',
                 inherit.aes = F ) +
     scale_fill_gradientn( colours = c( '#000000', '#d9d9d9', '#f0f0f0', '#ffff33', '#e41a1c' ), 
                           limits = c( 0, 2 ), guide = F ) +
-    scale_size_continuous( range = c( 0.025, 0.5 ), limits = c( 1, 2 ), guide = F ) +
+    scale_size_continuous( range = c( 0.03, 0.9 ), limits = c( 1, 2 ), guide = F ) +
     theme( aspect.ratio = my.aspect,
            panel.background = element_rect(fill = "black", color  =  NA),
            plot.background = element_rect(color = "black", fill = "black" ) ) +
@@ -132,7 +132,7 @@ for( f in 2 : max( res$time ) ) {
   cat( f, 'printed\n' )
   
   ## save last frame
-  last = current
+  # last = current
   
 }
 
