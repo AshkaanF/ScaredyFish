@@ -34,7 +34,7 @@ arena_y <- range( res$y ) + c(-1, 1)
 my.aspect <- diff( arena_x ) / diff( arena_y )
 
 ## load and melt
-tile <- as.matrix( read.table( './landscape.tsv', header = F, sep = '\t' ) )
+tile <- as.matrix( read.table( './reef.tsv', header = T, sep = '\t' ) )
 # tile <- OpenImageR::down_sample_image( tile, factor = 1, gaussian_blur = T )
 tile.grid <- melt( tile )
 tile.grid$Var2 <- as.numeric( gsub( 'V', '', tile.grid$Var2 ) )
@@ -172,11 +172,9 @@ for( f in 2 : max( res$time ) ) {
   gg.net <- ggplot(data = current, aes(x = x, y = y, group = id, 
                                        colour = state, 
                                        alpha = transp ) ) +
-    geom_tile(data = tile.grid,
+    geom_raster(data = tile.grid,
               aes( Var1, Var2, fill = as.numeric( value ) ),
-              colour = '#000000',
               alpha = 0.5,
-              size = NA,
               inherit.aes = F ) +
     # geom_edges(color = '#ffffff',
     #            size = 0.2,
