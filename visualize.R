@@ -232,5 +232,97 @@ for( f in 2 : max( res$time ) ) {
 
 
 
+## ----------------------
+## big results
+## ----------------------
+library( dplyr )
+library( magrittr )
+library( tibble )
+library(data.table)
 
+## data
+res <- fread( './results.tsv.gz', sep = '\t', header = F )
+
+## add header
+names( res ) <- c( 'time', 'id', 'x', 'y', 'state', 'in.a.patch', 'sim', 'inhibition' )
+
+## remove goners
+res <- res[ res$x > -1e5, ]
+
+## summarize
+sum.res <- res[ res$state == 1, ] %>%
+  dplyr::group_by( sim, inhibition ) %>%
+  dplyr::summarise( 'cascade.length' = length( unique( id ) ) ) %>%
+  as.data.frame() 
+
+## make fractions
+sum.res$frac <- sum.res$cascade.length / 4000
+
+## boxplot
+ggplot( sum.res, aes( x = as.factor( inhibition ), y = cascade.length, fill = inhibition ) ) +
+  theme_classic() +
+  scale_y_log10() +
+  ylab( 'Cascade size (number of agents)' ) +
+  xlab( 'Inhibition strength' ) +
+  geom_boxplot( fatten = 0, width = 0.55, size = 0.65, coef = 1e3, fill = '#ffffff' ) +
+  stat_summary( geom = 'point', fun = 'mean', shape = 21, size = 1.5, stroke = 1, alpha = 0.75 ) +
+  scale_fill_gradientn( colours = viridis::inferno( 11 ),
+                        guide = guide_colorbar(label = TRUE,
+                                               draw.ulim = TRUE,
+                                               draw.llim = TRUE,
+                                               frame.colour = 'black',
+                                               frame.linewidth = 1,
+                                               ticks = TRUE,
+                                               nbin = 6,
+                                               title.position = 'left',
+                                               title.theme = element_text(angle = 90, size = 8),
+                                               label.position = 'right',
+                                               barwidth = 0.4,
+                                               barheight = 7,
+                                               direction = 'vertical') )
+
+## density
+ggplot( sum.res, aes( x = frac, y = ..count.. / sum( ..count.. ), fill = inhibition, group = inhibition ) ) +
+  theme_classic() +
+  ylab( 'Proportion' ) +
+  xlab( 'Cascade size (fraction of agents)' ) +
+  scale_y_log10() +
+  stat_bin( bins = 50, colour = '#000000', geom = 'point', shape = 21, position = 'identity', size = 2 ) +
+  scale_fill_gradientn( colours = viridis::magma( 4 ),
+                        guide = guide_colorbar(label = TRUE,
+                                               draw.ulim = TRUE,
+                                               draw.llim = TRUE,
+                                               frame.colour = 'black',
+                                               frame.linewidth = 1,
+                                               ticks = TRUE,
+                                               nbin = 6,
+                                               title.position = 'left',
+                                               title.theme = element_text(angle = 90, size = 8),
+                                               label.position = 'right',
+                                               barwidth = 0.4,
+                                               barheight = 7,
+                                               direction = 'vertical') )
+
+## joy plot
+library(ggridges)
+ggplot( sum.res, aes( x = cascade.length,
+                  height = ..ndensity..,
+                  group = inhibition, fill = inhibition ) ) +
+  geom_density_ridges2( aes( y = as.factor( inhibition ) ),
+                        stat = 'binline',
+                        scale = 1.5, rel_min_height = 0.01,
+                        binwidth = 0.22,
+                        alpha = 0.5,
+                        size = 0.5 ) +
+  xlab( 'Cascade size' ) +
+  ylab( 'Inhibition strength' ) +
+  # scale_x_continuous( expand = c(0, 0) ) +
+  scale_x_log10( expand = c(0, 0) ) +
+  scale_fill_gradientn(
+    colours = viridis::inferno( 15 ),
+    limits = c(0, 1.2),
+    guide = F ) +
+  theme_ridges( font_size = 13, grid = TRUE ) +
+  theme( axis.title = element_text( size = 10 ),
+         axis.text = element_text( size = 8 ) )
 
